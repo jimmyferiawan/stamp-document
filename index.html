@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Stamp - Multiple Files</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📄 PDF Stamp - Multiple Files</h1>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="load">Load PDFs</button>
+            <button class="tab" data-tab="stamp">Manage Stamps</button>
+            <button class="tab" data-tab="template" style="display: none;">Template Generator</button>
+            <button class="tab" data-tab="preview">Preview & Apply</button>
+            <button class="tab" data-tab="download">Download</button>
+        </div>
+
+        <!-- Tab: Load PDFs -->
+        <div class="tab-content active" id="load-tab">
+            <div class="info-box">
+                <p><strong>📌 Note:</strong> All processing is done locally in your browser. No files are uploaded to any server.</p>
+                <p><strong>✅ Supports:</strong> Multiple PDF files at once</p>
+            </div>
+            
+            <div class="upload-area" id="upload-area">
+                <p style="font-size: 18px; margin: 10px 0;">📁 Drag & Drop PDF files here</p>
+                <p style="color: #666;">or</p>
+                <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
+                <input type="file" id="file-input" accept="application/pdf" multiple style="display: none;">
+            </div>
+
+            <div id="file-list-container" style="display: none;">
+                <h3>Loaded Files (<span id="file-count">0</span>)</h3>
+                <div class="file-list" id="file-list"></div>
+                <button class="btn btn-danger" id="clear-files">Clear All Files</button>
+            </div>
+        </div>
+
+        <!-- Tab: Manage Stamps -->
+        <div class="tab-content" id="stamp-tab">
+            <h2>Stamp Library</h2>
+            <div class="controls">
+                <button class="btn btn-primary" id="add-signature">✏️ Draw Signature</button>
+                <button class="btn btn-primary" id="add-image">🖼️ Upload Image</button>
+                <input type="file" id="stamp-image-input" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="stamp-list" id="stamp-list">
+                <p style="color: #666;">No stamps added yet. Create a stamp using the buttons above.</p>
+            </div>
+        </div>
+
+        <!-- Tab: Template Generator -->
+        <div class="tab-content" id="template-tab">
+            <h2>📝 Generate Stamp from Template</h2>
+            
+            <div class="info-box">
+                <p><strong>ℹ️ Info:</strong> Buat stamp custom dengan template yang sudah didefinisikan. Anda bisa input nomor salinan atau text lainnya.</p>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h3>Select Template</h3>
+                <div class="template-gallery" id="template-gallery">
+                    <!-- Templates will be added here -->
+                </div>
+            </div>
+
+            <div style="margin: 20px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+                <h3>Customize Template</h3>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Selected Template:</label>
+                    <input type="text" id="selected-template-name" readonly style="width: 100%; padding: 8px; background: #e9ecef; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Header Text:</label>
+                    <input type="text" id="template-header" placeholder="e.g., BSS TERKENDALI" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Label Text:</label>
+                    <input type="text" id="template-label" placeholder="e.g., NO. SALINAN :" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Number/Value:</label>
+                    <input type="text" id="template-number" placeholder="e.g., 1, 2, 3, or ABC" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Width (px):</label>
+                    <input type="number" id="template-width" value="350" min="200" max="800" style="width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Header Color:</label>
+                    <input type="color" id="template-header-color" value="#FF0000" style="width: 100px; height: 40px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Text Color:</label>
+                    <input type="color" id="template-text-color" value="#000000" style="width: 100px; height: 40px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+
+                <button class="btn btn-primary" id="preview-template">👁️ Preview Template</button>
+                <button class="btn btn-success" id="generate-template">✅ Generate & Add to Library</button>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h3>Preview</h3>
+                <div id="template-preview" style="border: 2px dashed #ddd; padding: 20px; min-height: 150px; text-align: center; background: rgba(255, 255, 255, 0); border-radius: 8px;">
+                    <p style="color: #999;">Preview will appear here...</p>
+                </div>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h3>Or Upload Custom Template</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('template-upload').click()">📤 Upload Template Image</button>
+                    <input type="file" id="template-upload" accept="image/*" style="display: none;">
+                    <span style="color: #666; font-size: 14px;">Upload your own template image (PNG recommended)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Preview & Apply -->
+        <div class="tab-content" id="preview-tab">
+            <div id="no-files-message" style="text-align: center; padding: 40px; color: #666;">
+                <p style="font-size: 18px;">No PDF files loaded</p>
+                <p>Please load PDF files from the "Load PDFs" tab first</p>
+            </div>
+
+            <div id="preview-container" style="display: none;">
+                <h3>Preview & Position Stamps</h3>
+                
+                <div class="controls">
+                    <label>Select File:</label>
+                    <select id="file-selector" class="btn btn-secondary"></select>
+                </div>
+
+                <div class="page-nav">
+                    <button class="btn btn-secondary" id="prev-page">◀ Prev</button>
+                    <span class="page-info">Page <span id="current-page">1</span> / <span id="total-pages">1</span></span>
+                    <button class="btn btn-secondary" id="next-page">Next ▶</button>
+                </div>
+
+                <div class="controls">
+                    <label>Select Stamp:</label>
+                    <select id="stamp-selector" class="btn btn-secondary">
+                        <option value="">-- No Stamp Selected --</option>
+                    </select>
+                    <button class="btn btn-primary" id="add-stamp-to-canvas">Add Stamp to Canvas</button>
+                </div>
+
+                <div class="controls">
+                    <label>Position:</label>
+                    <select id="position-preset" class="btn btn-secondary">
+                        <option value="custom">Custom (Drag on Canvas)</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="top-center">Top Center</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="center">Center</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-center">Bottom Center</option>
+                        <option value="bottom-right">Bottom Right</option>
+                    </select>
+                    <button class="btn btn-secondary" id="apply-position">Apply Position</button>
+                </div>
+
+                <div class="controls">
+                    <label>Opacity:</label>
+                    <input type="range" id="opacity-slider" min="0" max="100" value="100">
+                    <span id="opacity-value">100%</span>
+                    <label>Size:</label>
+                    <input type="range" id="size-slider" min="50" max="500" value="150">
+                    <span id="size-value">150px</span>
+                    <label>Repeat Every:</label>
+                    <input type="number" id="repeat-interval" min="0" value="0" style="width: 60px;"> pages (0 = all pages)
+                </div>
+
+                <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 4px;">
+                    <strong>💡 Tips:</strong> 
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        <li>Select a stamp and click "Add Stamp to Canvas"</li>
+                        <li>Drag the stamp on the canvas to position it</li>
+                        <li>Resize by dragging corners</li>
+                        <li>Or use preset positions for quick placement</li>
+                        <li>Adjust opacity and size with sliders</li>
+                    </ul>
+                </div>
+
+                <div id="canvas-container" style="border: 2px solid #ddd; display: inline-block; position: relative; background: #f5f5f5;">
+                    <canvas id="pdf-canvas" style="display: block; position: relative; z-index: 1;"></canvas>
+                    <canvas id="fabric-canvas" style="position: absolute; top: 0; left: 0; z-index: 10; pointer-events: auto;"></canvas>
+                </div>
+
+                <div class="controls" style="margin-top: 20px;">
+                    <button class="btn btn-success" id="apply-stamp">✅ Apply Stamp to All Files</button>
+                    <button class="btn btn-secondary" id="clear-canvas">🗑️ Clear Canvas</button>
+                    <button class="btn btn-secondary" id="remove-selected">❌ Remove Selected Stamp</button>
+                    <button class="btn btn-secondary" id="fix-canvas-layer" style="background: #ffc107; color: #000;">🔧 Fix Layer (if stamp hidden)</button>
+                </div>
+                
+                <div id="canvas-debug" style="display: none; margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 12px;"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Download -->
+        <div class="tab-content" id="download-tab">
+            <h2>Download Processed Files</h2>
+            
+            <div id="no-processed-files" style="text-align: center; padding: 40px; color: #666;">
+                <p style="font-size: 18px;">No processed files available</p>
+                <p>Please apply stamps to your PDFs first from the "Preview & Apply" tab</p>
+            </div>
+
+            <div id="download-container" style="display: none;">
+                <div class="info-box">
+                    <p><strong>✅ Ready to download!</strong></p>
+                    <p>You can download files individually or all at once as a ZIP file.</p>
+                </div>
+
+                <div class="progress-container" id="progress-container" style="display: none;">
+                    <p>Processing: <span id="progress-text">0%</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%">0%</div>
+                    </div>
+                </div>
+
+                <div class="file-list" id="download-list"></div>
+
+                <div class="controls">
+                    <button class="btn btn-success" id="download-all">📦 Download All as ZIP</button>
+                    <button class="btn btn-secondary" id="download-selected">📥 Download Selected</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Signature Drawing -->
+    <div class="modal" id="signature-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Draw Your Signature</h2>
+                <button class="close-modal" onclick="closeSignatureModal()">×</button>
+            </div>
+            <canvas class="signature-pad" id="signature-canvas" width="500" height="200"></canvas>
+            <div class="controls">
+                <label>Color:</label>
+                <input type="color" id="sig-color" value="#000000">
+                <button class="btn btn-secondary" id="clear-signature">Clear</button>
+                <button class="btn btn-primary" id="save-signature">Save Signature</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>
