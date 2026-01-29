@@ -42,6 +42,17 @@
         <!-- Tab: Manage Stamps -->
         <div class="tab-content" id="stamp-tab">
             <h2>Stamp Library</h2>
+            
+            <div style="margin-bottom: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px solid #ccc;">
+                <h3 style="margin-top: 0;">Default Settings</h3>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <label style="font-weight: 500;">Default Opacity when adding stamp:</label>
+                    <input type="range" id="global-default-opacity" min="0" max="100" value="100" style="width: 200px;">
+                    <span id="global-opacity-value" style="font-weight: bold;">100%</span>
+                </div>
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">This will be the default opacity for all new stamps added to canvas</p>
+            </div>
+
             <div class="controls">
                 <button class="btn btn-primary" id="add-signature">✏️ Draw Signature</button>
                 <button class="btn btn-primary" id="add-image">🖼️ Upload Image</button>
@@ -106,13 +117,20 @@
                     <input type="color" id="template-text-color" value="#000000" style="width: 100px; height: 40px; border: 1px solid #ccc; border-radius: 4px;">
                 </div>
 
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Default Opacity:</label>
+                    <input type="range" id="template-opacity" min="0" max="100" value="100" style="width: 200px;">
+                    <span id="template-opacity-value">100%</span>
+                    <p style="font-size: 12px; color: #666; margin: 5px 0;">Opacity when added to canvas</p>
+                </div>
+
                 <button class="btn btn-primary" id="preview-template">👁️ Preview Template</button>
                 <button class="btn btn-success" id="generate-template">✅ Generate & Add to Library</button>
             </div>
 
             <div style="margin: 20px 0;">
                 <h3>Preview</h3>
-                <div id="template-preview" style="border: 2px dashed #ddd; padding: 20px; min-height: 150px; text-align: center; background: rgba(255, 255, 255, 0); border-radius: 8px;">
+                <div id="template-preview" style="border: 2px dashed #ddd; padding: 20px; min-height: 150px; text-align: center; background: white; border-radius: 8px;">
                     <p style="color: #999;">Preview will appear here...</p>
                 </div>
             </div>
@@ -178,8 +196,73 @@
                     <label>Size:</label>
                     <input type="range" id="size-slider" min="50" max="500" value="150">
                     <span id="size-value">150px</span>
-                    <label>Repeat Every:</label>
-                    <input type="number" id="repeat-interval" min="0" value="0" style="width: 60px;"> pages (0 = all pages)
+                </div>
+
+                <div style="margin: 20px 0; padding: 15px; border: 2px solid #007bff; border-radius: 8px; background: #f0f8ff;">
+                    <h3 style="margin-top: 0;">📄 Page Selection</h3>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Apply stamp to:</label>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <label style="cursor: pointer;">
+                                <input type="radio" name="page-mode" value="all" checked> All Pages
+                            </label>
+                            <label style="cursor: pointer;">
+                                <input type="radio" name="page-mode" value="first"> First Page Only
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px;">
+                        <strong>📌 Current:</strong> 
+                        <span id="page-selection-preview">All pages will receive the stamp</span>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0; padding: 15px; border: 2px solid #28a745; border-radius: 8px; background: #f0fff4;">
+                    <h3 style="margin-top: 0;">🎯 Per-File Position (Optional)</h3>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="enable-per-file-position" style="margin-right: 8px;">
+                            <strong>Enable different position for each file</strong>
+                        </label>
+                        <p style="font-size: 12px; color: #666; margin: 5px 0 10px 24px;">
+                            When enabled, you can set different stamp position for each PDF file
+                        </p>
+                    </div>
+
+                    <div id="per-file-position-container" style="display: none;">
+                        <div style="margin-bottom: 10px; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                            <strong>📝 How it works:</strong>
+                            <ol style="margin: 5px 0; padding-left: 20px; font-size: 13px;">
+                                <li>Check the checkbox above</li>
+                                <li>Select file from "Select File" dropdown above</li>
+                                <li>Position stamp on canvas for that file</li>
+                                <li>Click "Save Position for Current File"</li>
+                                <li>Repeat for other files (or use "Copy to All")</li>
+                                <li>Finally, click "Apply Stamp to All Files"</li>
+                            </ol>
+                        </div>
+
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff3cd; border-radius: 4px;">
+                            <strong>Current file:</strong> 
+                            <span id="current-file-name" style="font-weight: bold; color: #007bff;">No file selected</span>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" id="save-position-for-file">💾 Save Position for Current File</button>
+                            <button class="btn btn-secondary" id="copy-position-to-all">📋 Copy to All Files</button>
+                            <button class="btn btn-secondary" id="reset-file-positions">🔄 Reset All</button>
+                        </div>
+
+                        <div id="saved-positions-list" style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                            <strong>Saved Positions:</strong>
+                            <div id="positions-list-content" style="margin-top: 5px; font-size: 13px; color: #666;">
+                                No positions saved yet
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 4px;">
@@ -199,7 +282,7 @@
                 </div>
 
                 <div class="controls" style="margin-top: 20px;">
-                    <button class="btn btn-success" id="apply-stamp">✅ Apply Stamp to All Files</button>
+                    <button class="btn btn-success" id="apply-stamp">✅ Apply Stamp</button>
                     <button class="btn btn-secondary" id="clear-canvas">🗑️ Clear Canvas</button>
                     <button class="btn btn-secondary" id="remove-selected">❌ Remove Selected Stamp</button>
                     <button class="btn btn-secondary" id="fix-canvas-layer" style="background: #ffc107; color: #000;">🔧 Fix Layer (if stamp hidden)</button>
@@ -222,6 +305,7 @@
                 <div class="info-box">
                     <p><strong>✅ Ready to download!</strong></p>
                     <p>You can download files individually or all at once as a ZIP file.</p>
+                    <p style="margin-top: 10px;"><strong>Total files:</strong> <span id="total-processed-count" style="font-weight: bold; color: #28a745;">0</span></p>
                 </div>
 
                 <div class="progress-container" id="progress-container" style="display: none;">
@@ -236,6 +320,7 @@
                 <div class="controls">
                     <button class="btn btn-success" id="download-all">📦 Download All as ZIP</button>
                     <button class="btn btn-secondary" id="download-selected">📥 Download Selected</button>
+                    <button class="btn btn-danger" id="clear-processed">🗑️ Clear All Processed Files</button>
                 </div>
             </div>
         </div>
@@ -258,6 +343,7 @@
         </div>
     </div>
 
+    <!-- Load Required Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>

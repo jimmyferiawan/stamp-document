@@ -143,7 +143,6 @@ h1 {
 }
 .canvas-container {
     position: relative;
-    top: 0;
 }
 .upper-canvas {
     z-index: 10 !important;
@@ -293,6 +292,7 @@ label {
 /* Additional CSS for fabric canvas layering */
 .canvas-container {
     position: relative;
+    top: 0;
 }
 .canvas-wrapper {
     position: absolute !important;
@@ -319,7 +319,7 @@ label {
     padding: 15px;
     cursor: pointer;
     transition: all 0.3s;
-    background: rgba(255, 255, 255, 0);
+    background: white;
     text-align: center;
 }
 .template-card:hover {

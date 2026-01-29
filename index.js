@@ -10,6 +10,7 @@
         let signatureCanvas = null;
         let signatureCtx = null;
         let selectedTemplate = null;
+        let filePositions = {}; // Store positions per file: {fileIndex: {stamps: [...], pageMode: 'all'|'first'}}
 
         // Predefined templates
         const templates = [
@@ -108,6 +109,13 @@
                 document.getElementById('stamp-image-input').click();
             });
             document.getElementById('stamp-image-input').addEventListener('change', handleImageUpload);
+            document.getElementById('global-default-opacity').addEventListener('input', function() {
+                const value = this.value;
+                document.getElementById('global-opacity-value').textContent = value + '%';
+                // Update main opacity slider too
+                document.getElementById('opacity-slider').value = value;
+                document.getElementById('opacity-value').textContent = value + '%';
+            });
 
             // Signature modal
             document.getElementById('clear-signature').addEventListener('click', clearSignature);
@@ -117,6 +125,10 @@
             document.getElementById('preview-template').addEventListener('click', previewTemplate);
             document.getElementById('generate-template').addEventListener('click', generateAndSaveTemplate);
             document.getElementById('template-upload').addEventListener('change', handleTemplateUpload);
+            document.getElementById('template-opacity').addEventListener('input', function() {
+                const value = this.value;
+                document.getElementById('template-opacity-value').textContent = value + '%';
+            });
 
             // Preview controls
             document.getElementById('prev-page').addEventListener('click', () => changePage(-1));
@@ -131,9 +143,21 @@
             document.getElementById('opacity-slider').addEventListener('input', updateOpacity);
             document.getElementById('size-slider').addEventListener('input', updateSize);
 
+            // Page selection controls
+            document.querySelectorAll('input[name="page-mode"]').forEach(radio => {
+                radio.addEventListener('change', updatePageSelectionUI);
+            });
+            
+            // Per-file position controls
+            document.getElementById('enable-per-file-position').addEventListener('change', togglePerFilePosition);
+            document.getElementById('save-position-for-file').addEventListener('click', savePositionForFile);
+            document.getElementById('copy-position-to-all').addEventListener('click', copyPositionToAll);
+            document.getElementById('reset-file-positions').addEventListener('click', resetFilePositions);
+
             // Download
             document.getElementById('download-all').addEventListener('click', downloadAllAsZip);
             document.getElementById('download-selected').addEventListener('click', downloadSelected);
+            document.getElementById('clear-processed').addEventListener('click', clearProcessedFiles);
         }
 
         function switchTab(tabName) {
@@ -359,6 +383,7 @@
 
             currentFileIndex = 0;
             await loadPDFForPreview(0);
+            updateCurrentFileName();
         }
 
         async function loadPDFForPreview(fileIndex) {
@@ -487,12 +512,17 @@
 
             const stamp = stamps[parseInt(stampIndex)];
             
+            // Get default opacity from global setting
+            const defaultOpacity = document.getElementById('global-default-opacity') 
+                ? document.getElementById('global-default-opacity').value / 100 
+                : document.getElementById('opacity-slider').value / 100;
+            
             fabric.Image.fromURL(stamp.data, function(img) {
                 img.scaleToWidth(150);
                 img.set({
                     left: fabricCanvas.width / 2 - 75,
                     top: fabricCanvas.height / 2 - 75,
-                    opacity: document.getElementById('opacity-slider').value / 100,
+                    opacity: defaultOpacity,
                     selectable: true,
                     hasControls: true,
                     hasBorders: true,
@@ -502,6 +532,11 @@
                 fabricCanvas.setActiveObject(img);
                 fabricCanvas.bringToFront(img);
                 fabricCanvas.renderAll();
+                
+                // Update opacity slider to match
+                const opacityPercent = Math.round(defaultOpacity * 100);
+                document.getElementById('opacity-slider').value = opacityPercent;
+                document.getElementById('opacity-value').textContent = opacityPercent + '%';
                 
                 // Force canvas wrapper to stay on top
                 setTimeout(() => {
@@ -585,6 +620,24 @@
             const fileIndex = parseInt(document.getElementById('file-selector').value);
             currentFileIndex = fileIndex;
             loadPDFForPreview(fileIndex);
+            
+            // Update current file name display for per-file position
+            updateCurrentFileName();
+            
+            // Auto-load saved position if exists and per-file mode is enabled
+            const perFileEnabled = document.getElementById('enable-per-file-position').checked;
+            if (perFileEnabled && filePositions[fileIndex]) {
+                loadSavedPositionForFile(fileIndex);
+            }
+        }
+
+        function updateCurrentFileName() {
+            const currentFileNameEl = document.getElementById('current-file-name');
+            if (currentFileNameEl && pdfFiles[currentFileIndex]) {
+                const hasPosition = filePositions[currentFileIndex] ? '✅ ' : '';
+                currentFileNameEl.textContent = hasPosition + pdfFiles[currentFileIndex].name;
+                currentFileNameEl.style.color = filePositions[currentFileIndex] ? '#28a745' : '#007bff';
+            }
         }
 
         function clearCanvas() {
@@ -630,6 +683,197 @@
                 }
             }
         }
+
+        function updatePageSelectionUI() {
+            updatePageSelectionPreview();
+        }
+
+        function updatePageSelectionPreview() {
+            const mode = document.querySelector('input[name="page-mode"]:checked').value;
+            const previewEl = document.getElementById('page-selection-preview');
+            
+            if (mode === 'all') {
+                previewEl.textContent = 'All pages will receive the stamp';
+            } else {
+                previewEl.textContent = 'Only first page will receive the stamp';
+            }
+        }
+
+        function shouldStampPage(pageIndex, totalPages) {
+            const mode = document.querySelector('input[name="page-mode"]:checked').value;
+            const pageNumber = pageIndex + 1; // Convert 0-based index to 1-based page number
+            
+            if (mode === 'all') {
+                return true;
+            } else {
+                return pageNumber === 1;
+            }
+        }
+
+        // ========== PER-FILE POSITION FUNCTIONS ==========
+
+        function togglePerFilePosition() {
+            const enabled = document.getElementById('enable-per-file-position').checked;
+            const container = document.getElementById('per-file-position-container');
+            
+            if (enabled) {
+                container.style.display = 'block';
+                updateCurrentFileName();
+                updateSavedPositionsList();
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function loadSavedPositionForFile(fileIndex) {
+            if (!filePositions[fileIndex]) return;
+            
+            // Clear current canvas
+            if (fabricCanvas) {
+                fabricCanvas.clear();
+            }
+            
+            const savedConfig = filePositions[fileIndex];
+            
+            // Restore page mode
+            document.querySelector(`input[name="page-mode"][value="${savedConfig.pageMode}"]`).checked = true;
+            updatePageSelectionPreview();
+            
+            // Restore stamps on canvas
+            savedConfig.stamps.forEach(config => {
+                fabric.Image.fromURL(config.imageData, function(img) {
+                    img.set({
+                        left: config.left,
+                        top: config.top,
+                        scaleX: config.scaleX,
+                        scaleY: config.scaleY,
+                        opacity: config.opacity,
+                        selectable: true,
+                        hasControls: true,
+                        hasBorders: true
+                    });
+                    fabricCanvas.add(img);
+                });
+            });
+            
+            fabricCanvas.renderAll();
+        }
+
+        function savePositionForFile() {
+            // Use current file from file-selector
+            const fileIndex = currentFileIndex;
+            
+            if (fileIndex === null || fileIndex === undefined || !pdfFiles[fileIndex]) {
+                alert('Please select a file first from "Select File" dropdown');
+                return;
+            }
+            
+            if (!fabricCanvas || fabricCanvas.getObjects().length === 0) {
+                alert('Please add at least one stamp to canvas first');
+                return;
+            }
+            
+            // Get current page mode
+            const pageMode = document.querySelector('input[name="page-mode"]:checked').value;
+            
+            // Get stamp configurations from canvas
+            const stampConfigs = fabricCanvas.getObjects().map(obj => {
+                return {
+                    imageData: obj.toDataURL(),
+                    left: obj.left,
+                    top: obj.top,
+                    width: obj.getScaledWidth(),
+                    height: obj.getScaledHeight(),
+                    opacity: obj.opacity,
+                    scaleX: obj.scaleX,
+                    scaleY: obj.scaleY
+                };
+            });
+            
+            // Save configuration
+            filePositions[fileIndex] = {
+                stamps: stampConfigs,
+                pageMode: pageMode
+            };
+            
+            updateCurrentFileName();
+            updateSavedPositionsList();
+            
+            alert(`✅ Position saved for: ${pdfFiles[fileIndex].name}`);
+        }
+
+        function copyPositionToAll() {
+            const fileIndex = currentFileIndex;
+            
+            if (fileIndex === null || fileIndex === undefined || !pdfFiles[fileIndex]) {
+                alert('Please select a file first');
+                return;
+            }
+            
+            if (!filePositions[fileIndex]) {
+                alert('No position saved for current file. Please save position first.');
+                return;
+            }
+            
+            if (!confirm(`Copy position of "${pdfFiles[fileIndex].name}" to all other files?`)) {
+                return;
+            }
+            
+            const sourceConfig = filePositions[fileIndex];
+            
+            // Copy to all files
+            pdfFiles.forEach((file, index) => {
+                filePositions[index] = JSON.parse(JSON.stringify(sourceConfig));
+            });
+            
+            updateCurrentFileName();
+            updateSavedPositionsList();
+            
+            alert(`✅ Position copied to all ${pdfFiles.length} files!`);
+        }
+
+        function resetFilePositions() {
+            if (!confirm('Reset all saved positions?')) {
+                return;
+            }
+            
+            filePositions = {};
+            updateCurrentFileName();
+            updateSavedPositionsList();
+            
+            alert('All positions reset!');
+        }
+
+        function updateSavedPositionsList() {
+            const listContent = document.getElementById('positions-list-content');
+            
+            const savedCount = Object.keys(filePositions).length;
+            
+            if (savedCount === 0) {
+                listContent.innerHTML = '<span style="color: #999;">No positions saved yet</span>';
+                return;
+            }
+            
+            let html = `<div style="color: #28a745; font-weight: bold; margin-bottom: 5px;">✅ ${savedCount} file(s) configured</div>`;
+            
+            Object.keys(filePositions).forEach(index => {
+                const config = filePositions[index];
+                const fileName = pdfFiles[index] ? pdfFiles[index].name : `File ${index}`;
+                const stampCount = config.stamps.length;
+                const pageMode = config.pageMode === 'all' ? 'All pages' : 'First page only';
+                
+                html += `
+                    <div style="padding: 5px; margin: 3px 0; background: #f8f9fa; border-left: 3px solid #28a745; font-size: 12px;">
+                        <strong>${fileName}</strong><br>
+                        <span style="color: #666;">${stampCount} stamp(s), ${pageMode}</span>
+                    </div>
+                `;
+            });
+            
+            listContent.innerHTML = html;
+        }
+
+        // ========== END PER-FILE POSITION FUNCTIONS ==========
 
         function fixCanvasLayer() {
             if (!fabricCanvas) {
@@ -695,38 +939,76 @@
         }
 
         async function applyStampToAllFiles() {
-            // Check if there are stamps on the canvas
-            if (!fabricCanvas || fabricCanvas.getObjects().length === 0) {
-                alert('Please add at least one stamp to the canvas first');
-                return;
+            const perFileEnabled = document.getElementById('enable-per-file-position').checked;
+            
+            // Ask user if they want to append or replace existing processed files
+            if (processedFiles.length > 0) {
+                const append = confirm(
+                    `You have ${processedFiles.length} processed file(s) already.\n\n` +
+                    `Click OK to ADD new files to the list.\n` +
+                    `Click Cancel to REPLACE existing files.`
+                );
+                
+                if (!append) {
+                    processedFiles = [];
+                }
             }
-
-            if (!confirm(`Apply stamp(s) to all ${pdfFiles.length} files?`)) {
-                return;
+            
+            // Check if per-file mode is enabled
+            if (perFileEnabled) {
+                // Use saved positions per file
+                const savedCount = Object.keys(filePositions).length;
+                
+                if (savedCount === 0) {
+                    alert('No file positions saved! Please save position for at least one file, or use "Copy to All".');
+                    return;
+                }
+                
+                if (savedCount < pdfFiles.length) {
+                    if (!confirm(`Only ${savedCount} of ${pdfFiles.length} files have saved positions. Files without positions will be skipped. Continue?`)) {
+                        return;
+                    }
+                }
+                
+                // Process with per-file positions
+                await applyWithPerFilePositions();
+            } else {
+                // Use current canvas for all files
+                if (!fabricCanvas || fabricCanvas.getObjects().length === 0) {
+                    alert('Please add at least one stamp to the canvas first');
+                    return;
+                }
+                
+                if (!confirm(`Apply stamp(s) to all ${pdfFiles.length} files with the same position?`)) {
+                    return;
+                }
+                
+                // Get stamp configurations from current canvas
+                const stampConfigs = fabricCanvas.getObjects().map(obj => {
+                    return {
+                        imageData: obj.toDataURL(),
+                        left: obj.left,
+                        top: obj.top,
+                        width: obj.getScaledWidth(),
+                        height: obj.getScaledHeight(),
+                        opacity: obj.opacity,
+                        scaleX: obj.scaleX,
+                        scaleY: obj.scaleY
+                    };
+                });
+                
+                await applyWithSamePosition(stampConfigs);
             }
+        }
 
-            const repeatInterval = parseInt(document.getElementById('repeat-interval').value) || 0;
-
-            // Get stamp configurations from fabric canvas
-            const stampConfigs = fabricCanvas.getObjects().map(obj => {
-                return {
-                    imageData: obj.toDataURL(),
-                    left: obj.left,
-                    top: obj.top,
-                    width: obj.getScaledWidth(),
-                    height: obj.getScaledHeight(),
-                    opacity: obj.opacity,
-                    scaleX: obj.scaleX,
-                    scaleY: obj.scaleY
-                };
-            });
-
+        async function applyWithSamePosition(stampConfigs) {
             // Show progress
             switchTab('download');
             const progressContainer = document.getElementById('progress-container');
             progressContainer.style.display = 'block';
 
-            processedFiles = [];
+            // Don't reset processedFiles here - it's handled in applyStampToAllFiles
+            const startCount = processedFiles.length;
 
             for (let i = 0; i < pdfFiles.length; i++) {
                 const progress = ((i + 1) / pdfFiles.length * 100).toFixed(0);
@@ -734,7 +1016,7 @@
                 document.getElementById('progress-fill').textContent = progress + '%';
                 document.getElementById('progress-text').textContent = `Processing ${pdfFiles[i].name} (${i + 1}/${pdfFiles.length})`;
 
-                const processedPdf = await processFileWithStamp(pdfFiles[i], stampConfigs, repeatInterval);
+                const processedPdf = await processFileWithStamp(pdfFiles[i], stampConfigs);
                 processedFiles.push({
                     name: pdfFiles[i].name,
                     data: processedPdf
@@ -744,14 +1026,62 @@
 
             progressContainer.style.display = 'none';
             updateDownloadList();
-            alert('All files processed successfully!');
+            
+            const newCount = processedFiles.length - startCount;
+            alert(`${newCount} file(s) processed successfully! Total: ${processedFiles.length} file(s)`);
         }
 
-        async function processFileWithStamp(fileInfo, stampConfigs, repeatInterval) {
+        async function applyWithPerFilePositions() {
+            // Show progress
+            switchTab('download');
+            const progressContainer = document.getElementById('progress-container');
+            progressContainer.style.display = 'block';
+
+            // Don't reset processedFiles here - it's handled in applyStampToAllFiles
+            const startCount = processedFiles.length;
+            let processedCount = 0;
+            let skippedCount = 0;
+
+            for (let i = 0; i < pdfFiles.length; i++) {
+                const progress = ((i + 1) / pdfFiles.length * 100).toFixed(0);
+                document.getElementById('progress-fill').style.width = progress + '%';
+                document.getElementById('progress-fill').textContent = progress + '%';
+                
+                if (!filePositions[i]) {
+                    console.log(`Skipping file ${i}: ${pdfFiles[i].name} - no position saved`);
+                    document.getElementById('progress-text').textContent = `Skipping ${pdfFiles[i].name} (${i + 1}/${pdfFiles.length}) - no position saved`;
+                    skippedCount++;
+                    continue;
+                }
+                
+                document.getElementById('progress-text').textContent = `Processing ${pdfFiles[i].name} (${i + 1}/${pdfFiles.length})`;
+
+                const fileConfig = filePositions[i];
+                const processedPdf = await processFileWithStamp(pdfFiles[i], fileConfig.stamps, fileConfig.pageMode);
+                processedFiles.push({
+                    name: pdfFiles[i].name,
+                    data: processedPdf
+                });
+                pdfFiles[i].processed = true;
+                processedCount++;
+            }
+
+            progressContainer.style.display = 'none';
+            updateDownloadList();
+            
+            let message = `${processedCount} file(s) processed successfully! Total: ${processedFiles.length} file(s)`;
+            if (skippedCount > 0) {
+                message += `\n${skippedCount} file(s) skipped (no position saved).`;
+            }
+            alert(message);
+        }
+
+        async function processFileWithStamp(fileInfo, stampConfigs, pageModeOverride = null) {
             const arrayBuffer = await fileInfo.file.arrayBuffer();
             const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
             
             const pages = pdfDoc.getPages();
+            const totalPages = pages.length;
             const firstPage = pages[0];
             const { width: pageWidth, height: pageHeight } = firstPage.getSize();
 
@@ -769,8 +1099,17 @@
             );
 
             pages.forEach((page, pageIndex) => {
-                // Apply stamps based on repeat interval
-                if (repeatInterval === 0 || pageIndex % (repeatInterval || 1) === 0) {
+                // Determine if this page should receive stamp
+                let shouldStamp;
+                if (pageModeOverride) {
+                    // Use override from per-file config
+                    shouldStamp = (pageModeOverride === 'all') || (pageIndex === 0);
+                } else {
+                    // Use global page selection
+                    shouldStamp = shouldStampPage(pageIndex, totalPages);
+                }
+                
+                if (shouldStamp) {
                     const { width, height } = page.getSize();
                     
                     stampConfigs.forEach((config, index) => {
@@ -802,6 +1141,7 @@
             const downloadList = document.getElementById('download-list');
             const noProcessedFiles = document.getElementById('no-processed-files');
             const downloadContainer = document.getElementById('download-container');
+            const totalCountEl = document.getElementById('total-processed-count');
 
             if (processedFiles.length === 0) {
                 noProcessedFiles.style.display = 'block';
@@ -811,6 +1151,12 @@
 
             noProcessedFiles.style.display = 'none';
             downloadContainer.style.display = 'block';
+            
+            // Update total count
+            if (totalCountEl) {
+                totalCountEl.textContent = processedFiles.length;
+            }
+            
             downloadList.innerHTML = '';
 
             processedFiles.forEach((file, index) => {
@@ -823,6 +1169,27 @@
                 `;
                 downloadList.appendChild(item);
             });
+        }
+
+        function clearProcessedFiles() {
+            if (processedFiles.length === 0) {
+                alert('No processed files to clear');
+                return;
+            }
+            
+            if (!confirm(`Clear all ${processedFiles.length} processed file(s)? This cannot be undone.`)) {
+                return;
+            }
+            
+            processedFiles = [];
+            
+            // Reset processed status on pdfFiles
+            pdfFiles.forEach(file => {
+                file.processed = false;
+            });
+            
+            updateDownloadList();
+            alert('All processed files cleared!');
         }
 
         function downloadSingleFile(index) {
