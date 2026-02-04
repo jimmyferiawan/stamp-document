@@ -619,16 +619,33 @@
         function changeFile() {
             const fileIndex = parseInt(document.getElementById('file-selector').value);
             currentFileIndex = fileIndex;
-            loadPDFForPreview(fileIndex);
+            // loadPDFForPreview(fileIndex);
             
             // Update current file name display for per-file position
             updateCurrentFileName();
             
             // Auto-load saved position if exists and per-file mode is enabled
             const perFileEnabled = document.getElementById('enable-per-file-position').checked;
-            if (perFileEnabled && filePositions[fileIndex]) {
-                loadSavedPositionForFile(fileIndex);
-            }
+            // if (perFileEnabled && filePositions[fileIndex]) {
+            //     loadSavedPositionForFile(fileIndex);
+            // }
+            loadPDFForPreview(fileIndex).then(data => {
+                // if (perFileEnabled && filePositions[fileIndex]) {
+                //     loadSavedPositionForFile(fileIndex);
+                // }
+                if (perFileEnabled) {
+                    // console.log(filePositions, fileIndex)
+                    // In per-file mode: load saved position if exists, otherwise clear canvas
+                    if (filePositions[fileIndex]) {
+                        loadSavedPositionForFile(fileIndex);
+                    } else {
+                        // Clear canvas for new file configuration
+                        if (fabricCanvas) {
+                            fabricCanvas.clear();
+                        }
+                    }
+                }
+            })
         }
 
         function updateCurrentFileName() {
@@ -742,17 +759,23 @@
             // Restore stamps on canvas
             savedConfig.stamps.forEach(config => {
                 fabric.Image.fromURL(config.imageData, function(img) {
+                    img.scaleToWidth(150)
                     img.set({
                         left: config.left,
                         top: config.top,
-                        scaleX: config.scaleX,
-                        scaleY: config.scaleY,
+                        // scaleX: config.scaleX,
+                        // scaleY: config.scaleY,
                         opacity: config.opacity,
+                        width: config.width,
+                        height: config.height,
                         selectable: true,
                         hasControls: true,
                         hasBorders: true
                     });
                     fabricCanvas.add(img);
+                    fabricCanvas.setActiveObject(img);
+                    fabricCanvas.bringToFront(img);
+                    fabricCanvas.renderAll();
                 });
             });
             
