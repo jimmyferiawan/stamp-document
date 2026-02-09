@@ -397,7 +397,17 @@
             
             currentPage = 1;
             await renderPage();
-            initializeFabricCanvas();
+            // initializeFabricCanvas();
+            if (!fabricCanvas) {
+                initializeFabricCanvas(); // Hanya buat kalau belum ada
+            } else {
+                const pdfCanvas = document.getElementById('pdf-canvas');
+                fabricCanvas.setDimensions({
+                    width: pdfCanvas.width,
+                    height: pdfCanvas.height
+                }) // Update size saja
+                fabricCanvas.renderAll(); // Re-render stamps ✅
+            }
         }
 
         async function renderPage() {
@@ -419,7 +429,13 @@
 
             document.getElementById('current-page').textContent = currentPage;
 
-            if (fabricCanvas) {
+            if (fabricCanvas) { //
+                const pageMode = document.querySelector('input[name="page-mode"]:checked')?.value;
+                const shouldShowStamps = (pageMode === 'all') || (pageMode === 'first' && currentPage === 1);
+                const allObjects = fabricCanvas.getObjects();
+                allObjects.forEach(obj => {
+                    obj.visible = shouldShowStamps;
+                });
                 fabricCanvas.setDimensions({ 
                     width: viewport.width, 
                     height: viewport.height 
@@ -779,7 +795,7 @@
                 });
             });
             
-            fabricCanvas.renderAll();
+            // fabricCanvas.renderAll();
         }
 
         function savePositionForFile() {
