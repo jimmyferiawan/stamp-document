@@ -1054,7 +1054,8 @@
                 document.getElementById('progress-fill').style.width = progress + '%';
                 document.getElementById('progress-fill').textContent = progress + '%';
                 document.getElementById('progress-text').textContent = `Processing ${pdfFiles[i].name} (${i + 1}/${pdfFiles.length})`;
-
+                if (!filePositions[i]) stampConfigs = [];
+                else stampConfigs = filePositions[i];
                 const processedPdf = await processFileWithStamp(pdfFiles[i], stampConfigs);
                 processedFiles.push({
                     name: pdfFiles[i].name,
