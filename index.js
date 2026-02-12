@@ -372,16 +372,18 @@
             document.getElementById('no-files-message').style.display = 'none';
             document.getElementById('preview-container').style.display = 'block';
 
+            const fileIndex = parseInt(document.getElementById('file-selector').value) ?? 0;
             const fileSelector = document.getElementById('file-selector');
             fileSelector.innerHTML = '';
             pdfFiles.forEach((file, index) => {
                 const option = document.createElement('option');
                 option.value = index;
                 option.textContent = file.name;
+                option.selected = index == fileIndex
                 fileSelector.appendChild(option);
             });
 
-            currentFileIndex = 0;
+            // currentFileIndex = 0;
             await loadPDFForPreview(0);
             updateCurrentFileName();
         }
